@@ -57,8 +57,8 @@ def init(args, root):
         raise ValueError("聊天工作目录不存在")
     if args.title.strip() != args.title or not 1 <= len(args.title) <= 160:
         raise ValueError("聊天名称须为 1–160 个字符")
-    if (args.all_local_reports or args.recent_replies) and not args.metadata_db:
-        raise ValueError("全主聊天汇报和最近回复需要 --metadata-db")
+    if (args.all_local_reports or args.recent_replies or args.questions) and not args.metadata_db:
+        raise ValueError("全主聊天汇报、最近回复和问题回复需要 --metadata-db")
     if args.owner_open_id and not re.fullmatch(r"ou_[A-Za-z0-9_-]+", args.owner_open_id):
         raise ValueError("本人 Open ID 格式无效")
     codex = absolute_executable(args.codex_bin)
@@ -78,7 +78,7 @@ def init(args, root):
     config = {"version": 1, "sourceDirectory": str(SOURCE), "nodeBinary": node,
               "codexBinary": codex, "controlThreadId": args.thread, "settingsPort": args.settings_port,
               "chatManagementEnabled": args.chat_management, "mediaEnabled": args.media,
-              "allLocalReportsEnabled": args.all_local_reports, "recentRepliesEnabled": args.recent_replies}
+              "allLocalReportsEnabled": args.all_local_reports, "recentRepliesEnabled": args.recent_replies, "questionsEnabled": args.questions}
     if args.metadata_db:
         database = args.metadata_db.expanduser().resolve(strict=True)
         if not database.is_file():
@@ -180,6 +180,7 @@ def main():
     setup.add_argument("--metadata-db", type=Path)
     setup.add_argument("--all-local-reports", action="store_true")
     setup.add_argument("--recent-replies", action="store_true")
+    setup.add_argument("--questions", action="store_true", help="转发启用后的本机主聊天异步提问，并将回答加入原聊天")
     for name in ("foreground", "install", "start", "stop", "uninstall", "status", "hook-config"):
         sub.add_parser(name)
     args = parser.parse_args()

@@ -101,6 +101,10 @@ def main() -> int:
         if not config.get("chatMetadataDatabase"):
             raise ValueError("recent_replies_require_metadata_database")
         command += ["--recent-replies-dir", str(root / "recent-replies")]
+    if config.get("questionsEnabled"):
+        if not config.get("chatMetadataDatabase"):
+            raise ValueError("questions_require_metadata_database")
+        command += ["--questions-dir", str(root / "questions")]
     if config.get("mediaEnabled"):
         command += ["--media-dir", str(root / "media")]
         for allowed_root in config.get("mediaAllowedRoots", []):

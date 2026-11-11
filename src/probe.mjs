@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { QuestionRelay } from './question-relay.mjs';
+import { createQuestionMonitor } from './question-monitor.mjs';
 import { createNavigationDelivery } from './navigation-delivery.mjs';
 /** Feishu probe with an optional file queue limited to two fixed harmless Codex approvals. */
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -40,7 +42,7 @@ function parseArgs(args) {
     if (flag === '--help') out.command = 'help';
     else if (flag === '--send-card-on-pair') out.sendCardOnPair = true;
     else if (flag === '--service') out.serviceMode = true;
-    else if (['--credentials', '--state', '--duration', '--bridge-dir', '--turn-outbox', '--codex-bin', '--codex-thread', '--session-catalog', '--chat-management-dir', '--health-file', '--media-dir', '--media-allowed-root', '--report-policy', '--chat-metadata-db', '--recent-replies-dir'].includes(flag) && args[i + 1]) {
+    else if (['--credentials', '--state', '--duration', '--bridge-dir', '--turn-outbox', '--codex-bin', '--codex-thread', '--session-catalog', '--chat-management-dir', '--health-file', '--media-dir', '--media-allowed-root', '--report-policy', '--chat-metadata-db', '--recent-replies-dir', '--questions-dir'].includes(flag) && args[i + 1]) {
       const value = args[++i];
       if (flag === '--credentials') out.credentials = resolve(value);
       if (flag === '--state') out.state = resolve(value);
@@ -54,6 +56,7 @@ function parseArgs(args) {
       if (flag === '--report-policy') out.reportPolicy = resolve(value);
       if (flag === '--chat-metadata-db') out.chatMetadataDb = resolve(value);
       if (flag === '--recent-replies-dir') out.recentRepliesDir = resolve(value);
+      if (flag === '--questions-dir') out.questionsDir = resolve(value);
       if (flag === '--media-dir') out.mediaDir = resolve(value);
       if (flag === '--media-allowed-root') { if (!isAbsolute(value)) throw new Error('media_root_requires_absolute_path'); (out.mediaAllowedRoots ??= []).push(resolve(value)); }
       if (flag === '--health-file') { if (!isAbsolute(value)) throw new Error('health_file_requires_absolute_path'); out.healthFile = resolve(value); }
@@ -72,6 +75,7 @@ function parseArgs(args) {
   if (out.mediaDir && !out.sessionCatalog) throw new Error('media_requires_session_catalog');
   if (out.mediaAllowedRoots && !out.mediaDir) throw new Error('media_roots_require_media_directory');
   if (out.recentRepliesDir && (!out.sessionCatalog || !out.chatMetadataDb)) throw new Error('recent_replies_require_catalog_and_metadata');
+  if (out.questionsDir && (!out.sessionCatalog || !out.chatMetadataDb)) throw new Error('questions_require_catalog_and_metadata');
   return out;
 }
 
@@ -79,7 +83,7 @@ function parseArgs(args) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.command === 'help') {
-    process.stdout.write('Usage: node probe.mjs check|listen --credentials /private/path/app.json --state /private/path/probe.state.json [--send-card-on-pair] [--duration 900 | --service --health-file /private/path/health.json] [--bridge-dir /private/path/bridge] [--turn-outbox /private/path/outbox --codex-bin /absolute/official/codex --codex-thread fixed-chat-id] [--session-catalog /private/path/catalog.json] [--chat-management-dir /private/path/creation] [--media-dir /private/path/media --media-allowed-root /absolute/image/output] [--chat-metadata-db /absolute/codex-state.sqlite --report-policy /private/path/policy.json] [--recent-replies-dir /private/path/recent-replies]\nCredentials may instead use FEISHU_APP_ID / FEISHU_APP_SECRET. Local stdin commands outside service mode: status, card, menu, quit.\n');
+    process.stdout.write('Usage: node probe.mjs check|listen --credentials /private/path/app.json --state /private/path/probe.state.json [--send-card-on-pair] [--duration 900 | --service --health-file /private/path/health.json] [--bridge-dir /private/path/bridge] [--turn-outbox /private/path/outbox --codex-bin /absolute/official/codex --codex-thread fixed-chat-id] [--session-catalog /private/path/catalog.json] [--chat-management-dir /private/path/creation] [--media-dir /private/path/media --media-allowed-root /absolute/image/output] [--chat-metadata-db /absolute/codex-state.sqlite --report-policy /private/path/policy.json] [--recent-replies-dir /private/path/recent-replies] [--questions-dir /private/path/questions]\nCredentials may instead use FEISHU_APP_ID / FEISHU_APP_SECRET. Local stdin commands outside service mode: status, card, menu, quit.\n');
     return;
   }
   const settingsPath = options.serviceMode ? process.env.CODEX_FEISHU_CONNECTION_SETTINGS : undefined;
@@ -133,6 +137,7 @@ async function main() {
   let turnTimer;
   let managementTimer;
   let healthTimer;
+  let questionTimer;
   let pollingBridge = false;
   const catalog = options.sessionCatalog ? loadSessionCatalog(options.sessionCatalog) : null;
   if (catalog && catalog.defaultSessionId !== options.codexThread) throw new Error('catalog_default_must_match_root_chat');
@@ -286,6 +291,17 @@ async function main() {
     catch (error) { log('turn_report_poll_failed', errorCode(error)); }
   }
 
+  // Async answers are user follow-ups bound to their source, never approval decisions.
+  const questionsAllowed = () => connectionAllowed() && connected && Boolean(state.owner);
+  const questions = options.questionsDir ? new QuestionRelay({
+    directory: options.questionsDir, binary: options.codexBin, queueRunner, lookupMetadata,
+    sendCard: (card, uuid) => sendOwnerMessage('interactive', card, uuid),
+    sendText: text => sendOwnerMessage('text', { text }), isAllowed: questionsAllowed, log,
+  }) : null;
+  const questionMonitor = questions ? createQuestionMonitor({ database: options.chatMetadataDb,
+    directory: options.questionsDir, relay: questions, resumeAtMs, isAllowed: questionsAllowed, log }) : null;
+  if (questions) questions.setSinceMs(questionMonitor.sinceMs);
+
   /** Deliver a fresh, bound menu or picker generated by the router. */
   async function sendSessionControl(result) {
     const messageId = await sendOwnerMessage('interactive', result.card);
@@ -326,6 +342,7 @@ async function main() {
   /** Catalog mode owns routing exclusively: selection is explicit and card replies keep their origin. */
   async function routeOwnerMessage(message, text, targetSnapshot) {
     try {
+      if (questions && await questions.handleText(message.message_id, text)) return;
       const isControl = ['菜单', '新建', '新建聊天', '切换聊天', '当前聊天'].includes(text.trim());
       if (management && !isControl) {
         const creation = await management.consumeDetails(message.message_id, text, message.create_time);
@@ -431,6 +448,15 @@ async function main() {
   function onCard(raw) {
     if (!connectionAllowed()) return { toast: { type: 'warning', content: '飞书连接已暂停。' } };
     const event = raw?.event ?? raw;
+    if (questions && event?.action?.value?.route === 'question_answer') {
+      if (!state.owner || event?.operator?.open_id !== state.owner.openId || event?.context?.open_chat_id !== state.owner.chatId) {
+        log('question_answer_rejected', { reason: 'not_owner' });
+        return { toast: { type: 'warning', content: '仅已绑定本人可回答问题。' } };
+      }
+      setImmediate(() => { void questions.onAnswer(event.action.value, event.context.open_message_id)
+        .catch(() => log('question_answer_processing_failed')); });
+      return { toast: { type: 'info', content: '已收到回答，请查看后续确认消息。' } };
+    }
     if (sessionRouter && ['select_session', 'session_menu', 'session_page'].includes(event?.action?.value?.route)) {
       if (!state.owner || event?.operator?.open_id !== state.owner.openId || event?.context?.open_chat_id !== state.owner.chatId) {
         log('session_selection_rejected', { reason: 'not_owner' });
@@ -492,7 +518,7 @@ async function main() {
   function shutdown(reason, code = 0) {
     if (closing) return;
     closing = true;
-    clearTimeout(timeout); clearTimeout(connectTimeout); clearInterval(bridgeTimer); clearInterval(turnTimer); clearInterval(managementTimer); clearInterval(healthTimer); input?.close();
+    clearTimeout(timeout); clearTimeout(connectTimeout); clearInterval(bridgeTimer); clearInterval(turnTimer); clearInterval(managementTimer); clearInterval(healthTimer); clearInterval(questionTimer); input?.close();
     connected = false;
     try { runtime.stop(); } catch { log('health_shutdown_write_failed'); }
     for (const request of Object.values(state.requests)) if (request.status === 'pending') request.status = 'expired';
@@ -529,9 +555,10 @@ async function main() {
     try { if (runtime.tick().restartRequired) shutdown('connection_watchdog_timeout', 1); }
     catch { log('health_heartbeat_failed'); shutdown('health_heartbeat_failed', 1); }
   }, HEALTH_INTERVAL_MS);
-  log('probe_starting', { sdkVersion: '1.76.0', ownerPaired: Boolean(state.owner), serviceMode: options.serviceMode, durationSeconds: options.serviceMode ? null : options.duration, bridgeEnabled: Boolean(bridge), turnRelayEnabled: Boolean(turnRelay), catalogRoutingEnabled: Boolean(sessionRouter), chatManagementEnabled: Boolean(management), mediaEnabled: Boolean(incomingImages), dynamicReportTitles: Boolean(lookupMetadata), allLocalReportPolicy: Boolean(options.reportPolicy), recentRepliesEnabled: Boolean(recentChats), selectableChatLimit: recentChats ? 10 : null });
+  log('probe_starting', { sdkVersion: '1.76.0', ownerPaired: Boolean(state.owner), serviceMode: options.serviceMode, durationSeconds: options.serviceMode ? null : options.duration, bridgeEnabled: Boolean(bridge), turnRelayEnabled: Boolean(turnRelay), catalogRoutingEnabled: Boolean(sessionRouter), chatManagementEnabled: Boolean(management), mediaEnabled: Boolean(incomingImages), dynamicReportTitles: Boolean(lookupMetadata), allLocalReportPolicy: Boolean(options.reportPolicy), recentRepliesEnabled: Boolean(recentChats), questionsEnabled: Boolean(questions), selectableChatLimit: recentChats ? 10 : null });
   if (bridge) { log('bridge_ready', { bridgeRunId: state.runId, expiresAtMs: bridge.runtime.expiresAtMs }); bridgeTimer = setInterval(() => { void pollBridge(); }, 500); }
   if (turnRelay) turnTimer = setInterval(() => { void pollTurnReports(); }, 500);
+  if (questionMonitor) questionTimer = setInterval(() => { void questionMonitor.poll(); }, 2000);
   if (management) managementTimer = setInterval(() => { void pollChatManagement(); }, 500);
   if (!state.owner) log('pairing_required', { sendThisExactTextInBotPrivateChat: pairCode, restrictedOwnerConfigured: Boolean(config.ownerOpenId) });
   await turnRelay?.reconcileSentReports();

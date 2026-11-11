@@ -64,3 +64,7 @@ tail -f "$HOME/Library/Application Support/CodexFeishuBridge/logs/connector.log"
 ```
 
 安装器使用 `local.codex-feishu` 作为登录服务标识。如果已存在同名服务，安装会停止并保留原服务。用 `stop`、`start` 操作本仓库安装的服务，日常暂停收发用[设置页](http://127.0.0.1:59431/)开关。
+
+### 可选：中途提问与回答
+
+新装时添加 `--questions --metadata-db /绝对路径/state.sqlite`。现有安装在私密 service.json 配置 questionsEnabled=true 和已核对的 chatMetadataDatabase，再重启原连接。该功能读取启用后的本机主聊天异步提问，并将本人飞书答案加入原聊天；无需额外 Hook 或扩大审批权限。查看[使用与边界](usage.md#在飞书回答-codex-的中途提问)。
