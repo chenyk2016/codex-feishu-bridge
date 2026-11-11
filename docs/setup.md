@@ -69,6 +69,6 @@ tail -f "$HOME/Library/Application Support/CodexFeishuBridge/logs/connector.log"
 
 新装时添加 `--questions --metadata-db /绝对路径/state.sqlite`。现有安装在私密 service.json 配置 questionsEnabled=true 和已核对的 chatMetadataDatabase，再重启原连接。该功能读取启用后的本机主聊天异步提问，并将本人飞书答案加入原聊天；无需额外 Hook 或扩大审批权限。查看[使用与边界](usage.md#在飞书回答-codex-的中途提问)。
 
-## 6. 第一次使用的验收
+## 6. 检查是否连通
 
-依次确认私聊发送任务、原桌面聊天实际执行、Stop 回复回到飞书。可选功能分别验收，不把“已入队”当作任务完成。开启异步问题后，应能收到问题卡并将答案送回原聊天；当前桌面问题框仍保留，不会自动关闭。首次独立安装的验证状态见[兼容性与验证](compatibility.md)。
+依次确认私聊发送任务、原桌面聊天实际执行、Stop 回复回到飞书。启用了可选功能时，分别检查对应流程。开启异步问题后，应能收到问题卡并将答案送回原聊天；当前桌面问题框仍保留，不会自动关闭。支持环境见[兼容性](compatibility.md)。

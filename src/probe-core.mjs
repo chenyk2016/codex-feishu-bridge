@@ -1,4 +1,4 @@
-/** Pure approval rules and private-file helpers for the Feishu-only probe. */
+/** Shared configuration and private-file helpers, with rules for isolated approval tests. */
 import { createHash, randomBytes } from 'node:crypto';
 import { constants, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';

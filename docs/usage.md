@@ -16,6 +16,7 @@
 | 图片收发 | 初始化加 `--media`，或设置 `mediaEnabled`。设置可选的 `mediaAllowedRoots` 以批准具体输出目录。显式 Markdown 图片引用才会上传。当前每轮最多四张，每张 10 MiB |
 | Mermaid | 启用图片，安装 Google Chrome。代码块离线渲染为 PNG；渲染失败时回复保留文字 |
 | 全主聊天汇报 | 显式添加 `--all-local-reports --metadata-db 路径` 并安装 Stop Hook。公开范围包括本机主聊天中的最终回复。可将 `report-policy.json` 的 `enabled` 设为 `false` 撤回该范围 |
+| 异步问答 | 加 `--questions --metadata-db 路径`，将新问题发送到飞书；详见下方[问答说明](#在飞书回答-codex-的中途提问) |
 | 最近回复 | 加 `--recent-replies --metadata-db 路径`，成功汇报的聊天进入最近 10 个回复目标 |
 | 新建聊天 | 实验功能。加 `--chat-management`，建议也提供 `--metadata-db`。在飞书发「新建聊天」，按卡片提示填写标题和首条任务。控制聊天须能用桌面聊天管理工具，且工作目录是已登记的 Codex 项目 |
 

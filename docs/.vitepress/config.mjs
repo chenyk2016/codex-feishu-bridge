@@ -24,7 +24,6 @@ const summaries = {
   'docs/faq.md': '回答 Codex 飞书连接是否官方、是否支持 Lark、桌面问题框为何保留、数据去向及使用条件。',
   'docs/compatibility.md': '查看 Codex Feishu Bridge 的支持环境、自动测试、真实使用验证和仍未验证的范围。',
   'docs/architecture.md': '了解 Feishu 长连接、本机桥接、Codex 队列与 Stop Hook 的数据流、状态和源码职责。',
-  'docs/discovery.md': '项目的 GitHub 简介、主题、搜索与 AI 检索信息，以及公开发布后的验证步骤。',
   'docs/releasing.md': '从干净安装、隐私核对到版本标签和 GitHub Pages 的开源发布流程。',
 };
 
@@ -65,7 +64,6 @@ export default defineConfig({
       { text: '行为准则', link: '/CODE_OF_CONDUCT' },
       { text: '更新日志', link: '/CHANGELOG' },
       { text: '发布维护', link: '/docs/releasing' },
-      { text: '搜索与项目资料', link: '/docs/discovery' },
     ] }],
     socialLinks: repo ? [{ icon: 'github', link: repo }] : [],
     outline: { label: '本页内容', level: [2, 3] },

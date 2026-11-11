@@ -2,7 +2,7 @@
 import { QuestionRelay } from './question-relay.mjs';
 import { createQuestionMonitor } from './question-monitor.mjs';
 import { createNavigationDelivery } from './navigation-delivery.mjs';
-/** Feishu probe with an optional file queue limited to two fixed harmless Codex approvals. */
+/** Feishu connector for paired chats, reports, media and questions; approval experiments are opt-in. */
 import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -79,7 +79,7 @@ function parseArgs(args) {
   return out;
 }
 
-/** Connect, pair exactly one private-chat owner, and handle only explicit test cards. */
+/** Connect, pair one private-chat owner, and dispatch messages and card actions. */
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.command === 'help') {
