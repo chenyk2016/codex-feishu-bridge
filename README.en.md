@@ -33,6 +33,8 @@ Requirements: macOS, Node.js 24+, macOS system Python 3, a Codex desktop CLI sup
 From the repository root, replace the sample values below:
 
 ```sh
+git clone https://github.com/chenyk2016/codex-feishu-bridge.git
+cd codex-feishu-bridge
 npm ci
 /usr/bin/python3 manage.py init \
   --thread '<your Codex chat ID>' \

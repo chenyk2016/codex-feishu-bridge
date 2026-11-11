@@ -8,11 +8,11 @@
 
 **English:** A self-hosted macOS bridge to continue Codex desktop chats from Feishu, receive reports, and answer asynchronous questions.
 
-项目名统一使用 **Codex Feishu Bridge**，仓库名建议使用 `codex-feishu-bridge`。这是社区项目，与 OpenAI、飞书无官方隶属关系。当前实现使用 Feishu 域名；Lark 国际版尚未验证。
+项目名统一使用 **Codex Feishu Bridge**，公开仓库为 [chenyk2016/codex-feishu-bridge](https://github.com/chenyk2016/codex-feishu-bridge)。这是社区项目，与 OpenAI、飞书无官方隶属关系。当前实现使用 Feishu 域名；Lark 国际版尚未验证。
 
 ## GitHub About
 
-公开时可使用以下信息；当前文件不代表已创建仓库或完成公开设置。
+公开仓库已配置 Description 与 Topics，并启用私下漏洞报告。文档目前可直接在 GitHub 阅读；独立文档站与社交分享封面上传仍按发布流程处理。
 
 | 字段 | 内容 |
 | --- | --- |
@@ -23,7 +23,7 @@
 | License | MIT |
 | 讨论与问题 | 使用仓库 Issues；漏洞优先走私下报告入口 |
 
-没有远程仓库时，不生成虚构的仓库链接、下载量、CI 徽章、星标或推荐评价。确定真实 GitHub 地址后，再补 `package.json` 的 `repository`、`homepage`、`bugs` 和 README 在线文档链接。
+`package.json` 已填写真实 `repository`、GitHub README `homepage` 与 `bugs` 地址；README 使用实际克隆命令。独立文档站上线后再替换 Website，不编造下载量、星标或推荐评价。
 
 ## SEO：让读者和搜索引擎找到内容
 

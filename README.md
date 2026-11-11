@@ -37,6 +37,8 @@
 获取仓库并在根目录运行以下命令，将尖括号示例替换为真实值：
 
 ```sh
+git clone https://github.com/chenyk2016/codex-feishu-bridge.git
+cd codex-feishu-bridge
 npm ci
 /usr/bin/python3 manage.py init \
   --thread '<你的 Codex 聊天 ID>' \
