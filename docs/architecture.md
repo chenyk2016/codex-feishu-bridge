@@ -2,6 +2,11 @@
 
 飞书负责私聊收发，Codex 桌面负责运行和权限判断。桥接负责单人配对、确定目标聊天、投递以及记录送达结果。
 
+![消息往返：飞书私聊经本机桥接投递到 Codex，最终回复由 Stop Hook 回传](public/images/overview.svg)
+
+<details>
+<summary>消息时序的 Mermaid 源码</summary>
+
 ```mermaid
 sequenceDiagram
   actor Owner as 已配对用户
@@ -19,6 +24,8 @@ sequenceDiagram
   Bridge->>Outbox: 核对范围与发送记录
   Bridge-->>Feishu: 发送回复卡
 ```
+
+</details>
 
 ## 从哪里读代码
 
@@ -41,6 +48,10 @@ sequenceDiagram
 本地元数据查询与消息传输分开。飞书聊天选择会影响后续任务路由，已发卡片保留自己的来源，发送前再次核对已选目标。
 
 ## 异步提问通道
+
+![异步问题通过飞书回答后进入原聊天队列，桌面问题框仍保留](public/images/question-flow.svg)
+
+当前答案以新用户消息返回，桌面原生问题框仍保留，不会自动关闭。
 
 `question-monitor.mjs` 驱动 `question-scan.py` 对只读索引列出的主聊天做有界增量扫描，只接受结构化异步提问。`question-relay.mjs` 持久化题目快照、飞书消息绑定和答案状态；`probe.mjs` 在已配对本人鉴权后分发回调/明确文字答案。收齐答案经既有 queue 写入原 session，整个过程独立于最近回复目标，也不调用审批决定接口。
 

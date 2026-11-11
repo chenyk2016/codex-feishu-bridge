@@ -8,3 +8,7 @@
 4. 提交说明写清影响与验证范围。提交可使用 Conventional Commits，例如 `fix(relay): preserve the selected reply target`。
 
 测试请使用模拟输入和独立的私密目录。贡献内容只使用可分发的素材。提交贡献意味着同意按项目的 [MIT 许可证](LICENSE)分发该贡献。
+
+## 文档与说明图
+
+文档站直接使用仓库中的 Markdown；运行 `npm run docs:dev` 预览，提交前运行 `npm run docs:build` 和 `npm run docs:check`。中英文介绍需同步能力边界；新增功能请更新 FAQ、兼容性与更新日志。编辑 SVG 后检查文字与箭头，分享图的导出方法见[发布维护](docs/releasing.md)。不要将个人截图、运行凭据、聊天记录或 `AGENTS.md` 提交到公开仓库。

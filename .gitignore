@@ -17,3 +17,6 @@ report-policy.json
 *.log
 *.pem
 *.key
+
+docs/.vitepress/cache/
+docs/.vitepress/dist/
