@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "defaultSessionId": "example_root_chat",
+  "sessions": [
+    { "sessionId": "example_root_chat", "title": "主要聊天", "cwd": "/path/to/workspace" },
+    { "sessionId": "example_second_chat", "title": "另一个聊天", "cwd": "/path/to/another-workspace" }
+  ]
+}

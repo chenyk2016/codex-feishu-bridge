@@ -1,0 +1,21 @@
+{
+  "name": "codex-feishu-bridge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "for file in src/*.mjs; do node --check \"$file\" || exit; done",
+    "test": "node --test src/*.test.mjs && /usr/bin/python3 -m unittest discover -s src -p \"test_*.py\"",
+    "test:mermaid": "RUN_MERMAID_BROWSER_TEST=1 node --test src/mermaid-renderer.test.mjs"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "1.76.0",
+    "mermaid": "12.3.0",
+    "playwright-core": "1.64.1"
+  },
+  "version": "0.1.0",
+  "description": "A self-hosted macOS bridge between Codex desktop and a Feishu bot",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  }
+}

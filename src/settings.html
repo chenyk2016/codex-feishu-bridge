@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codex 飞书连接</title>
+<style nonce="__LOCAL_TOKEN__">
+:root { color-scheme: light dark; font-family: -apple-system, "PingFang SC", sans-serif; }
+body { margin: 0; background: light-dark(#f3f5f8, #14171b); color: light-dark(#1b2738, #e7edf5); }
+main { max-width: 440px; padding: 48px 20px; margin: auto; }
+h1 { font-size: 23px; margin: 0 0 20px; }
+section { background: light-dark(white, #1e242d); border: 1px solid light-dark(#dce2ea, #343e4b); border-radius: 16px; padding: 20px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-weight: 600; }
+button { border: 0; border-radius: 24px; width: 54px; height: 32px; padding: 4px; background: #687485; cursor: pointer; }
+button[aria-checked="true"] { background: #215acb; }
+button:disabled { opacity: .55; cursor: wait; }
+button:focus-visible { outline: 2px solid #689eff; outline-offset: 4px; }
+button::before { content: ""; display: block; width: 24px; height: 24px; border-radius: 50%; background: white; }
+button[aria-checked="true"]::before { transform: translateX(22px); }
+p { font-size: 14px; line-height: 1.6; }
+#status { margin: 12px 0 4px; }
+#heartbeat, .note { color: light-dark(#526276, #aab8ca); }
+#heartbeat { margin: 0; }
+#error { margin: 8px 0 0; color: light-dark(#aa2626, #ffaaaa); }
+</style>
+<main>
+  <h1>Codex 飞书连接</h1>
+  <section>
+    <div class="row"><span id="label">连接飞书</span><button type="button" role="switch" aria-checked="false" aria-labelledby="label" disabled></button></div>
+    <p id="status" role="status">正在读取状态…</p>
+    <p id="heartbeat" hidden></p>
+    <p id="error" role="alert" hidden></p>
+  </section>
+  <p class="note">关闭后暂停飞书收发。本机 Codex 照常使用，重新连接后从新消息开始。</p>
+</main>
+<script nonce="__LOCAL_TOKEN__">
+const button = document.querySelector('button');
+const statusLabel = document.querySelector('#status');
+const heartbeat = document.querySelector('#heartbeat');
+const error = document.querySelector('#error');
+const token = document.currentScript.nonce;
+const labels = { connected: '已连接', starting: '连接中…', reconnecting: '正在重连…', stopping: '正在断开…', paused: '已断开', unpaired: '已连接，等待配对', unavailable: '连接设置不可用', failed: '连接失败，正在等待重试' };
+let enabled, busy = false;
+function render(value) {
+  enabled = value.enabled;
+  button.setAttribute('aria-checked', String(enabled === true));
+  statusLabel.textContent = labels[value.status] ?? '状态未知';
+  heartbeat.hidden = !value.heartbeatAtMs;
+  heartbeat.textContent = value.heartbeatAtMs ? '最近心跳 ' + new Date(value.heartbeatAtMs).toLocaleTimeString() : '';
+}
+async function request(next) {
+  if (busy) return;
+  const change = typeof next === 'boolean';
+  busy = true;
+  if (change) button.disabled = true;
+  try {
+    const response = await fetch('/api/connection', change ? {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Connection-Token': token },
+      body: JSON.stringify({ enabled: next }),
+    } : { cache: 'no-store' });
+    if (!response.ok) throw new Error(response.status === 403 ? 'refresh' : 'request');
+    render(await response.json());
+    if (change || error.dataset.kind === 'read') error.hidden = true;
+  } catch (failure) {
+    if (!change) enabled = null;
+    error.dataset.kind = change ? 'write' : 'read';
+    error.textContent = change
+      ? failure.message === 'refresh' ? '服务可能已重启，请刷新页面后重试。' : '未能确认设置已保存，请查看当前状态后重试。'
+      : '暂时无法读取连接状态。';
+    error.hidden = false;
+  } finally {
+    busy = false;
+    button.disabled = typeof enabled !== 'boolean';
+  }
+}
+button.addEventListener('click', () => request(!enabled));
+request();
+setInterval(request, 2000);
+</script>
+</html>
