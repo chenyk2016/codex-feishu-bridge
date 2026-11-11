@@ -91,8 +91,8 @@ export function sessionPickerCard(catalog, currentSessionId, selectionId, page =
         behaviors: [{ type: 'callback', value: { route: 'session_page', selection_id: selectionId, page: target } }],
       }] })) });
   }
-  return { schema: '2.0', header: { title: { tag: 'plain_text', content: '切换 Codex 聊天' }, template: 'blue' }, body: { elements:
-    elements,
+  return { schema: '2.0', header: { title: { tag: 'plain_text', content: '切换 Codex 聊天' }, template: 'blue' }, body: {
+    elements: [{ tag: 'div', text: { tag: 'plain_text', content: '本列表10分钟内有效；重新打开请点击管理卡的“切换聊天”。' } }, ...elements],
   } };
 }
 
@@ -335,14 +335,16 @@ export class SessionRouter {
     return controlId;
   }
 
-  /** Read only a still-live control that was actually delivered as this exact platform message. */
-  readControl(controlId, messageId, now = Date.now()) {
+  /** Validate exact message binding; only non-executing menu navigation may reuse an old control. */
+  readControl(controlId, messageId, now = Date.now(), { reusableNavigation = false } = {}) {
     if (typeof controlId !== 'string' || !TOKEN.test(controlId)) return null;
     const path = join(this.selectionsDirectory, `${controlId}.json`);
     if (!existsSync(path)) return null;
     const control = readPrivateJson(path);
-    return control.version === 1 && control.controlId === controlId && control.status === 'pending' &&
-      control.expiresAtMs > now && control.messageId && control.messageId === messageId ? control : null;
+    const reusable = reusableNavigation && ['menu', 'current'].includes(control.kind) && ['pending', 'handled'].includes(control.status);
+    return control.version === 1 && control.controlId === controlId &&
+      (reusable || (control.status === 'pending' && control.expiresAtMs > now)) &&
+      control.messageId && control.messageId === messageId ? control : null;
   }
 
   /** Mark a validated control used, so old button clicks cannot replay management actions. */
@@ -409,7 +411,7 @@ export class SessionRouter {
   notePickerSent(selectionId, messageId) { this.noteControlSent(selectionId, messageId); }
 
   /** Apply a visible owner choice; the selection method never calls the task runner. */
-  selectSession(value, messageId, now = Date.now()) {
+  selectSession(value, messageId, now = Date.now(), { newMessage = false } = {}) {
     this.refreshCatalog();
     if (!value || value.route !== 'select_session' || !this.pickerCatalog().sessions.some((session) => session.sessionId === value.session_id)) return { status: 'invalid_selection' };
     const control = this.readControl(value.selection_id, messageId, now);
@@ -420,16 +422,17 @@ export class SessionRouter {
     const current = this.createCurrent(now);
     current.card.header.title.content = '已切换聊天';
     current.card.header.template = 'green';
-    this.noteControlSent(current.controlId, messageId);
-    return { ...current, status: 'switched', session: result.session, selectionSnapshot: result.selectionSnapshot, replaceMessage: true };
+    if (!newMessage) this.noteControlSent(current.controlId, messageId);
+    return { ...current, status: 'switched', session: result.session, selectionSnapshot: result.selectionSnapshot, replaceMessage: !newMessage };
   }
 
   /** Handle only issued management controls; callbacks cannot create or queue a task directly. */
-  handleControlAction(value, messageId, now = Date.now()) {
+  handleControlAction(value, messageId, now = Date.now(), { newMessage = false } = {}) {
     this.refreshCatalog();
-    if (value?.route === 'select_session') return this.selectSession(value, messageId, now);
+    if (value?.route === 'select_session') return this.selectSession(value, messageId, now, { newMessage });
     const id = value?.route === 'session_page' ? value.selection_id : value?.control_id;
-    const control = this.readControl(id, messageId, now);
+    const reusableNavigation = newMessage && value?.route === 'session_menu' && ['switch_chat', 'current_chat'].includes(value.action);
+    const control = this.readControl(id, messageId, now, { reusableNavigation });
     if (!control) return { status: 'invalid_selection' };
     let result;
     if (value.route === 'session_page') {
@@ -444,9 +447,9 @@ export class SessionRouter {
       else if (value.action === 'current_chat') result = this.createCurrent(now);
       else return { status: 'invalid_selection' };
     } else return { status: 'invalid_selection' };
-    this.consumeControl(control, now);
-    if (result.controlId) this.noteControlSent(result.controlId, messageId);
-    return { ...result, replaceMessage: true };
+    if (!reusableNavigation) this.consumeControl(control, now);
+    if (!newMessage && result.controlId) this.noteControlSent(result.controlId, messageId);
+    return { ...result, replaceMessage: !newMessage };
   }
 
   /** Resolve known approval/report references only; unknown references never fall back to current. */

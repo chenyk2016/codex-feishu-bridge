@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createNavigationDelivery } from './navigation-delivery.mjs';
 /** Feishu probe with an optional file queue limited to two fixed harmless Codex approvals. */
 import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -289,6 +290,7 @@ async function main() {
   async function sendSessionControl(result) {
     const messageId = await sendOwnerMessage('interactive', result.card);
     sessionRouter.noteControlSent(result.controlId ?? result.selectionId, messageId);
+    if (result.status === 'switched') sessionRouter.bindCard(messageId, result.session.sessionId, { kind: 'selection' });
     log('session_control_sent', { status: result.status, message: label(messageId) });
   }
 
@@ -419,6 +421,12 @@ async function main() {
     else if (turnRelay) setImmediate(() => { void queueOwnerFollowup(message.message_id, text); });
   }
 
+  const navigationDelivery = sessionRouter ? createNavigationDelivery({
+    router: sessionRouter, sendControl: sendSessionControl,
+    sendText: text => sendOwnerMessage('text', { text }),
+    isAllowed: connectionAllowed, onSwitched: () => management?.cancelDraft(), log,
+  }) : null;
+
   /** Consume only the owner's live request; return a toast/card without awaiting network I/O. */
   function onCard(raw) {
     if (!connectionAllowed()) return { toast: { type: 'warning', content: '飞书连接已暂停。' } };
@@ -428,6 +436,10 @@ async function main() {
         log('session_selection_rejected', { reason: 'not_owner' });
         return { toast: { type: 'warning', content: '仅已绑定本人可切换聊天。' } };
       }
+      if (navigationDelivery.accepts(event.action.value)) return navigationDelivery.receive({
+        value: event.action.value, messageId: event.context.open_message_id,
+        eventId: raw?.header?.event_id ?? event.token,
+      });
       let selected;
       try { selected = sessionRouter.handleControlAction(event.action.value, event.context.open_message_id); }
       catch (error) {
